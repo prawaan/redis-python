@@ -1,12 +1,20 @@
 import socket  # noqa: F401
 import threading as t
 
+store: dict = {}
+
 def process_data(data):
-    print("command: "+data[2])
-    if data[2] == 'echo':
+    cmd = data[2]
+    print(f"command: {cmd}")
+    if cmd == 'echo':
         return data[4]
-    if data[2] == 'ping':
+    if cmd == 'ping':
         return "PONG"
+    if cmd == 'set':
+        store[data[4]] = data[6]
+        return "OK"
+    if cmd == 'get':
+        return store.get(data[4], "nil")
     return "unknown command"
 
 def handle_request(connection, request_num):

@@ -1,7 +1,17 @@
 import socket  # noqa: F401
 import threading as t
+import time
 
 store: dict = {}
+
+def wrap(data):
+    if data == "nil":
+        return "$-1\r\n"
+    return f"${len(data)}\r\n{data}\r\n"
+
+def current_milli_time():
+    return round(time.time() * 1000)
+
 
 def process_data(data):
     cmd = data[2]
@@ -11,10 +21,18 @@ def process_data(data):
     if cmd == 'ping':
         return "PONG"
     if cmd == 'set':
-        store[data[4]] = data[6]
+        if len(data) > 8 and data[8] == 'px':
+            store[data[4]] = (data[6], current_milli_time() + int(data[10]))
+        else:
+            store[data[4]] = (data[6], -1)
         return "OK"
     if cmd == 'get':
-        return store.get(data[4], "nil")
+        value = store.get(data[4], "nil")
+        if value != 'nil' and value[1] != -1 and value[1] < current_milli_time():
+            store.pop(data[4])
+            return "nil"
+        return value[0]
+    
     return "unknown command"
 
 def handle_request(connection, request_num):
@@ -27,8 +45,9 @@ def handle_request(connection, request_num):
         print(f"Received data: {data}")
         data_processed = process_data(data.split(crlf))
         print(f"processed data: {data_processed}")
+        
+        response = wrap(data_processed)
 
-        response = f"${len(data_processed)}{crlf}{data_processed}{crlf}"
         print(f"Response: {response}")
         connection.sendall(bytes(response, "utf-8"))
     print(f"Request handled : {request_num}")

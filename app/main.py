@@ -1,14 +1,28 @@
 import socket  # noqa: F401
 import threading as t
 
+def process_data(data):
+    print("command: "+data[2])
+    if data[2] == 'echo':
+        return data[4]
+    if data[2] == 'ping':
+        return "PONG"
+    return "unknown command"
 
 def handle_request(connection, request_num):
     print(f"Handling request {request_num}")
+    crlf = "\r\n"
     while True:
-        data = connection.recv(1024)
+        data = connection.recv(1024).decode("utf-8").strip().lower()
         if not data:
             break
-        connection.sendall(b"+PONG\r\n")
+        print(f"Received data: {data}")
+        data_processed = process_data(data.split(crlf))
+        print(f"processed data: {data_processed}")
+
+        response = f"${len(data_processed)}{crlf}{data_processed}{crlf}"
+        print(f"Response: {response}")
+        connection.sendall(bytes(response, "utf-8"))
     print(f"Request handled : {request_num}")
 
 
